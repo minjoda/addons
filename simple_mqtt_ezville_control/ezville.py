@@ -262,10 +262,10 @@ def ezville_loop(config):
   
 
     # MQTT 통신 연결 Callback
-    def on_connect(client, userdata, flags, reason_code, properties):
-        if reason_code == 0:
+    def on_connect(client, userdata, flags, rc):
+        if rc == 0:
             log('[INFO] MQTT Broker 연결 성공')
-            # Subscribe based on communication mode
+            # Socket인 경우 MQTT 장치의 명령 관련과 MQTT Status (Birth/Last Will Testament) Topic만 구독
             if comm_mode == 'socket':
                 client.subscribe([(HA_TOPIC + '/#', 0), ('homeassistant/status', 0)])
             # Mixed인 경우 MQTT 장치 및 EW11의 명령/수신 관련 Topic 과 MQTT Status (Birth/Last Will Testament) Topic 만 구독
@@ -275,14 +275,12 @@ def ezville_loop(config):
             else:
                 client.subscribe([(HA_TOPIC + '/#', 0), (EW11_TOPIC + '/recv', 0), (EW11_TOPIC + '/send', 1), ('homeassistant/status', 0)])
         else:
-            reason_codes = {
-                mqtt.ReasonCodes(1): 'Connection refused - incorrect protocol version',
-                mqtt.ReasonCodes(2): 'Connection refused - invalid client identifier',
-                mqtt.ReasonCodes(3): 'Connection refused - server unavailable',
-                mqtt.ReasonCodes(4): 'Connection refused - bad username or password',
-                mqtt.ReasonCodes(5): 'Connection refused - not authorised'
-            }
-            log(reason_codes.get(reason_code, 'Connection failed with unknown reason code'))
+            errcode = {1: 'Connection refused - incorrect protocol version',
+                       2: 'Connection refused - invalid client identifier',
+                       3: 'Connection refused - server unavailable',
+                       4: 'Connection refused - bad username or password',
+                       5: 'Connection refused - not authorised'}
+            log(errcode[rc])
          
         
     # MQTT 메시지 Callback
@@ -311,10 +309,9 @@ def ezville_loop(config):
  
 
     # MQTT 통신 연결 해제 Callback
-    def on_disconnect(client, userdata, reason_code, properties):
-        log('[INFO] MQTT 연결 해제')
-        if reason_code != 0:
-            log(f'[ERROR] Disconnection reason: {reason_code}')
+    def on_disconnect(client, userdata, rc):
+        log('INFO: MQTT 연결 해제')
+        pass
 
 
     # MQTT message를 분류하여 처리
@@ -979,11 +976,12 @@ def ezville_loop(config):
 
         
     # MQTT 통신
-    from paho.mqtt.enums import CallbackAPIVersion
+    from paho.mqtt.enums import CallbackAPIVersion        
     mqtt_client = mqtt.Client(CallbackAPIVersion.VERSION1, 'mqtt-ezville')
     mqtt_client.username_pw_set(config['mqtt_id'], config['mqtt_password'])
     mqtt_client.on_connect = on_connect
     mqtt_client.on_disconnect = on_disconnect
+    mqtt_client.on_message = on_message
     mqtt_client.connect_async(config['mqtt_server'])
     
     # asyncio loop 획득 및 EW11 오류시 재시작 task 등록

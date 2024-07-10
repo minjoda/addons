@@ -976,12 +976,11 @@ def ezville_loop(config):
 
         
     # MQTT 통신
-    from paho.mqtt.enums import CallbackAPIVersion        
-    mqtt_client = mqtt.Client(CallbackAPIVersion.VERSION1, 'mqtt-ezville')
-    mqtt_client.username_pw_set(config['mqtt_id'], config['mqtt_password'])
+    mqtt_client = mqtt.Client('mqtt-ezville')
     mqtt_client.on_connect = on_connect
     mqtt_client.on_disconnect = on_disconnect
     mqtt_client.on_message = on_message
+    mqtt_client.username_pw_set(config['mqtt_id'], config['mqtt_password'])
     mqtt_client.connect_async(config['mqtt_server'])
     
     # asyncio loop 획득 및 EW11 오류시 재시작 task 등록
